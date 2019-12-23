@@ -1,0 +1,81 @@
+---
+title: "PracticalMachineLearning"
+author: "Janneke Schipper"
+date: "23 december 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Coursera - Practical Machine Learing
+
+```{r install packages}
+library("caret")
+library("rpart")
+library("rpart.plot")
+```
+
+# Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+#Load the data
+```{r reading data, cache = TRUE}
+testSet <- read.csv("pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+trainSet <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+```
+
+#Data Preperation
+Remove all the data that contains more than 95% of the obeservation to be NA.
+
+```{r, cache = TRUE}
+cleanNAclomn <- colSums(is.na(trainSet))/nrow(trainSet) < 0.95
+cleanTrainset <- trainSet[,cleanNAclomn]
+
+colSums(is.na(cleanTrainset))/nrow(cleanTrainset)
+colSums(is.na(cleanTrainset))
+
+cleanTrainset <- cleanTrainset[,-c(1:7)]
+cleantestet <- testSet[, -c(1:7)]
+```
+
+
+# perform a cross validation
+```{r, cache = TRUE}
+trainIndex <- createDataPartition(cleanTrainset$classe, p = 0.75)[[1]]
+trainset_train <- cleanTrainset[trainIndex, ]
+trainset_crossval_data <- cleanTrainset[-trainIndex,]
+
+namesTrain <- names(cleanTrainset)
+clean_test_data <- cleantestet[, namesTrain[1:52]]
+```
+
+# ML 1 - Random Forest
+```{r, cache = TRUE}
+model1RF <- train(classe ~., method = 'rf', data = trainset_train, ntree = 128)
+predictionRF <- predict(model1RF, trainset_crossval_data)
+confusionMatrix(trainset_crossval_data$classe, predictionRF)
+```
+
+#ML 2 - Decision Tree
+```{r, cache = TRUE}
+model2DT <- train(classe ~., method = 'rpart', data = trainset_train)
+
+dtpredict <- predict(model2DT, trainset_crossval_data)
+confusionMatrix(trainset_crossval_data$classe, dtpredict)
+
+rpart.plot(model2DT$finalModel)
+```
+
+Predict testset
+```{r, cache = TRUE}
+predict(model1RF, cleantestet)
+```
+
+#Conclusion
+We can see that the random forest algorithm outperforms the desciosion tree in terms of accurarcy
+The accusary for random forest = 0.99 and for descision tree = 0.49
+
